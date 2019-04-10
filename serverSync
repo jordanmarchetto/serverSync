@@ -17,7 +17,7 @@ SERVER = "servername"
 LOG_FILE = "/local/file/path/sync_log.txt"
 LOG_FILE_VERBOSE = "/local/file/path/sync_log_verbose.txt"
 RSYNC_ARGUMENTS = "" #example: "--chown=username:groupname --chmod=u=rw,og=r"
-DEFAULT_CONFIG_PATH = "/Users/JM250514/.config/serverSync.conf"
+DEFAULT_CONFIG_PATH = "/Users/JM250514/.config/serverSync.conf" ##CHANGE THIS, IT NEEDS TO BE A HARDCODED FULL PATH
 
 
 def main():

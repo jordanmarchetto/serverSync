@@ -1,9 +1,3 @@
 
-(16:19:52 2019-04-10) [test.html] deployed: /Users/JM250514/scripts/serverSync/test.html to /media/Webhosting/api.jmar.dev/html/test.html
-cmd: rsync -avzog "" /Users/JM250514/scripts/serverSync/test.html jmarchetto@tropicalia:/media/Webhosting/api.jmar.dev/html/test.html
-(16:20:28 2019-04-10) [test.html] deployed: /Users/JM250514/scripts/serverSync/test.html to /media/Webhosting/api.jmar.dev/html/test.html
-cmd: rsync -avzog  /Users/JM250514/scripts/serverSync/test.html jmarchetto@tropicalia:/media/Webhosting/api.jmar.dev/html/test.html
-(16:23:55 2019-04-10) [test.html] deployed: /Users/JM250514/scripts/serverSync/test.html to /media/Webhosting/api.jmar.dev/html/test.html
-cmd: rsync -avzog -e "ssh -p 522" /Users/JM250514/scripts/serverSync/test.html jmarchetto@tropicalia:/media/Webhosting/api.jmar.dev/html/test.html
-(16:29:12 2019-04-10) [test.html] deployed: /Users/JM250514/copy/test.html to /media/Webhosting/api.jmar.dev/html/test.html
-cmd: rsync -avzog -e "ssh -p 522" /Users/JM250514/copy/test.html jmarchetto@tropicalia:/media/Webhosting/api.jmar.dev/html/test.html
+(16:19:52 2019-04-10) [test.html] deployed: /local/path/test.html to /remote/path/test.html
+cmd: rsync -avzog "" /local/path/test.html username@servername:/remote/path/test.html
