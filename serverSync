@@ -1,0 +1,135 @@
+#!/usr/local/bin/python3
+# Jordan Marchetto
+import sys
+import configparser
+import os
+import time
+import datetime
+import subprocess
+
+
+#default globals
+LOCAL_WORKSPACE = "/local/file/path/workspace/"
+REMOTE_WORKSPACE = "/local/file/path/workspace/"
+USERNAME = "my_server_username"
+PASSWORD = "hunter2"
+SERVER = "servername"
+LOG_FILE = "/local/file/path/sync_log.txt"
+LOG_FILE_VERBOSE = "/local/file/path/sync_log_verbose.txt"
+RSYNC_ARGUMENTS = "" #example: "--chown=username:groupname --chmod=u=rw,og=r"
+DEFAULT_CONFIG_PATH = "/Users/JM250514/.config/serverSync.conf"
+
+
+def main():
+    #check config
+    checkConfig()
+    
+    #check Usage
+    checkUsage()
+    
+    #get file: /full/local/path/test.html
+    file_full_path = os.path.abspath(sys.argv[1])
+    
+    #get filename: test.html
+    filename = sys.argv[1].split("/")[-1]
+    
+    #make sure we're in the workspace
+    if LOCAL_WORKSPACE not in file_full_path:
+        sys.exit(0)
+    
+    #get the path from LOCAL_WORKSPACE onwards: test.html (this handles the case of running script from different dir than file)
+    #so if run from /local: /path/test.html
+    relative_path = file_full_path.split(LOCAL_WORKSPACE)[1]
+    
+    #set up remote path: /full/remote/path/test.html
+    remote_path = REMOTE_WORKSPACE + relative_path
+    local_file = file_full_path
+    
+    #build rsync command
+    #update rsync remote and local to be version 3.1, we should be able to use the --chown flag below
+    rsync_cmd = "rsync -avzog %s %s %s@%s:%s"%(RSYNC_ARGUMENTS, local_file, USERNAME, SERVER, remote_path)
+    #otherwise:
+    #rsync_cmd = "scp %s %s@%s:%s"%(local_file, USERNAME, SERVER, remote_path)
+    
+    #run cmd
+    response = subprocess.check_output(rsync_cmd, shell=True)
+    
+    #get a timestamp
+    ts = time.time()
+    timestamp = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S %Y-%m-%d')
+    
+    #write to logs
+    short_output = ""
+    long_output = ""
+    
+    #SHORT OUTPUT
+    short_output += "\n(%s) [%s] deployed."%(timestamp, filename)
+    #LONG OUTPUT
+    long_output += "\n(%s) [%s] deployed: %s to %s"%(timestamp, filename, file_full_path, remote_path)
+    long_output += "\ncmd: %s"%(rsync_cmd)
+    
+    log_short(short_output)
+    log_long(long_output)
+    
+    
+'''
+#write to short logfile
+'''
+def log_short(text):
+    global LOG_FILE
+    #open log file, change 'a' to 'w' if you want to clear the log file on each update
+    f = open(LOG_FILE, 'a')
+    f.write(text)
+    f.close()
+
+'''
+#write to verbose logfile
+'''
+def log_long(text):
+    global LOG_FILE_VERBOSE
+    #open log file, change 'a' to 'w' if you want to clear the log file on each update
+    f = open(LOG_FILE_VERBOSE, 'a')
+    f.write(text)
+    f.close()
+
+'''
+#read in from config
+'''
+def checkConfig():
+    global LOCAL_WORKSPACE, REMOTE_WORKSPACE, USERNAME, PASSWORD, SERVER, LOG_FILE, LOG_FILE_VERBOSE, RSYNC_ARGUMENTS, DEFAULT_CONFIG_PATH
+
+    #parse the config
+    config = configparser.ConfigParser()
+    config.read(DEFAULT_CONFIG_PATH)
+    
+    #assign config values to globals
+    if "LOCAL_WORKSPACE" in config["SETTINGS"]:
+        LOCAL_WORKSPACE = config["SETTINGS"]["LOCAL_WORKSPACE"]
+    if "REMOTE_WORKSPACE" in config["SETTINGS"]:
+        REMOTE_WORKSPACE = config["SETTINGS"]["REMOTE_WORKSPACE"]
+    if "USERNAME" in config["SETTINGS"]:
+        USERNAME = config["SETTINGS"]["USERNAME"]
+    if "PASSWORD" in config["SETTINGS"]:
+        PASSWORD = config["SETTINGS"]["PASSWORD"]
+    if "SERVER" in config["SETTINGS"]:
+        SERVER = config["SETTINGS"]["SERVER"]
+    if "LOG_FILE" in config["SETTINGS"]:
+        LOG_FILE = config["SETTINGS"]["LOG_FILE"]
+    if "LOG_FILE_VERBOSE" in config["SETTINGS"]:
+        LOG_FILE_VERBOSE = config["SETTINGS"]["LOG_FILE_VERBOSE"]
+    if "RSYNC_ARGUMENTS" in config["SETTINGS"]:
+        RSYNC_ARGUMENTS = config["SETTINGS"]["RSYNC_ARGUMENTS"]
+
+'''
+#make sure CLI is right
+'''
+def checkUsage ():
+    if len(sys.argv)<2:
+        print("Usage: " + sys.argv[0] + " [filename]");
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
+
+
