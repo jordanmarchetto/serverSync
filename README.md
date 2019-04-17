@@ -18,15 +18,23 @@ To use serverSync:
 usage: serverSync [-h] [-p] [-a] [-t] [filename]
 
 positional arguments:
+
   filename    file to upload, required unless using -p
 
 optional arguments:
+
   -h, --help  show this help message and exit
+
   -p, --pull  pull down this directory from remote workspace
+
   -a, --all   pull down entire remote workspace, must be used with -p
+
   -t, --test  only print rsync command, does not run command
 
 example:
+
   serverSync filename.html  #push single file
+
   serverSync -p filename.html #pull single file
+
   serverSync -ap #pull entire remote workspace
