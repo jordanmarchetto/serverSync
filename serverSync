@@ -6,9 +6,10 @@ import os
 import time
 import datetime
 import subprocess
+import argparse
 
 
-#default globals
+#example config fields
 LOCAL_WORKSPACE = "/local/file/path/workspace/"
 REMOTE_WORKSPACE = "/local/file/path/workspace/"
 USERNAME = "my_server_username"
@@ -17,116 +18,174 @@ SERVER = "servername"
 LOG_FILE = "/local/file/path/sync_log.txt"
 LOG_FILE_VERBOSE = "/local/file/path/sync_log_verbose.txt"
 RSYNC_ARGUMENTS = "" #example: "--chown=username:groupname --chmod=u=rw,og=r"
-DEFAULT_CONFIG_PATH = "/Users/JM250514/.config/serverSync.conf" ##CHANGE THIS, IT NEEDS TO BE A HARDCODED FULL PATH
+DEFAULT_CONFIG_PATH = os.path.expanduser("~") + "/.config/serverSync.conf" ##CHANGE THIS, IT NEEDS TO BE A HARDCODED FULL PATH
 
-
+#do the thing
 def main():
-    #check config
-    checkConfig()
-    
     #check Usage
-    checkUsage()
+    args = checkUsage()
     
-    #get file: /full/local/path/test.html
-    file_full_path = os.path.abspath(sys.argv[1])
-    
-    #get filename: test.html
-    filename = sys.argv[1].split("/")[-1]
-    
-    #make sure we're in the workspace
-    if LOCAL_WORKSPACE not in file_full_path:
-        sys.exit(0)
-    
-    #get the path from LOCAL_WORKSPACE onwards: test.html (this handles the case of running script from different dir than file)
-    #so if run from /local: /path/test.html
-    relative_path = file_full_path.split(LOCAL_WORKSPACE)[1]
-    
-    #set up remote path: /full/remote/path/test.html
-    remote_path = REMOTE_WORKSPACE + relative_path
-    local_file = file_full_path
-    
-    #build rsync command
-    #update rsync remote and local to be version 3.1, we should be able to use the --chown flag below
-    rsync_cmd = "rsync -avzog %s %s %s@%s:%s"%(RSYNC_ARGUMENTS, local_file, USERNAME, SERVER, remote_path)
-    #otherwise:
-    #rsync_cmd = "scp %s %s@%s:%s"%(local_file, USERNAME, SERVER, remote_path)
-    
-    #run cmd
-    response = subprocess.check_output(rsync_cmd, shell=True)
-    
-    #get a timestamp
-    ts = time.time()
-    timestamp = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S %Y-%m-%d')
-    
-    #write to logs
-    short_output = ""
-    long_output = ""
-    
-    #SHORT OUTPUT
-    short_output += "\n(%s) [%s] deployed."%(timestamp, filename)
-    #LONG OUTPUT
-    long_output += "\n(%s) [%s] deployed: %s to %s"%(timestamp, filename, file_full_path, remote_path)
-    long_output += "\ncmd: %s"%(rsync_cmd)
-    
-    log_short(short_output)
-    log_long(long_output)
-    
-    
-'''
-#write to short logfile
-'''
-def log_short(text):
-    global LOG_FILE
-    #open log file, change 'a' to 'w' if you want to clear the log file on each update
-    f = open(LOG_FILE, 'a')
-    f.write(text)
-    f.close()
+    #parse config
+    workspaces = parseConfig()
 
+    #check for pull/no pull
+    if args.pull:
+        if args.filename:
+            file_full_path = os.path.abspath(args.filename)
+            filename = args.filename.split("/")[-1]
+        else:
+            file_full_path = os.path.abspath("") + "/"
+            if args.all:
+                filename = "full workspace"
+            else:
+                filename = file_full_path
+    else:
+        #get file: /full/local/path/test.html
+        file_full_path = os.path.abspath(args.filename)
+    
+        #get filename: test.html
+        filename = args.filename.split("/")[-1]
+
+    #loop through work to see if we're in one
+    for workspace in workspaces:
+
+        #get all of our workspace specific variables
+        LOCAL_WORKSPACE = workspaces[workspace]['local_workspace']
+        REMOTE_WORKSPACE = workspaces[workspace]['remote_workspace']
+        USERNAME = workspaces[workspace]['username']
+        SERVER = workspaces[workspace]['server']
+        RSYNC_ARGUMENTS = workspaces[workspace]['rsync_arguments'] if 'rsync_arguments' in workspaces[workspace] else ""
+        LOG_FILE = workspaces[workspace]['log_file'] if 'log_file' in workspaces[workspace] else False
+        LOG_FILE_VERBOSE = workspaces[workspace]['log_file_verbose'] if 'log_file_verbose' in workspaces[workspace] else False
+
+        #make sure we're in the workspace
+        if LOCAL_WORKSPACE not in file_full_path:
+            continue
+
+        #get the path from LOCAL_WORKSPACE onwards: test.html (this handles the case of running script from different dir than file)
+        #so if run from /local: /path/test.html
+        relative_path = file_full_path.split(LOCAL_WORKSPACE)[1]
+        
+        #set up remote path: /full/remote/path/test.html
+        remote_path = REMOTE_WORKSPACE + relative_path
+        local_file = file_full_path
+        
+        #build rsync command
+        if args.pull:
+            #pulling down one file or current dir
+            rsync_cmd = "rsync -avzog %s %s@%s:%s %s"%(RSYNC_ARGUMENTS, USERNAME, SERVER, remote_path, local_file)
+            if args.all:
+                #syncing up LOCAL and REMOTE workspaces
+                rsync_cmd = "rsync -avzog %s %s@%s:%s %s"%(RSYNC_ARGUMENTS, USERNAME, SERVER, REMOTE_WORKSPACE, LOCAL_WORKSPACE)
+        else:
+            #update rsync remote and local to be version 3.1, we should be able to use the --chown flag below
+            rsync_cmd = "rsync -avzog %s %s %s@%s:%s"%(RSYNC_ARGUMENTS, local_file, USERNAME, SERVER, remote_path)
+            #otherwise:
+            #rsync_cmd = "scp %s %s@%s:%s"%(local_file, USERNAME, SERVER, remote_path)
+        
+        #run cmd (or not)
+        if (args.test):
+            print(rsync_cmd)
+        else:
+            response = subprocess.check_output(rsync_cmd, shell=True)
+
+        #get a timestamp
+        ts = time.time()
+        timestamp = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S %Y-%m-%d')
+        
+        #write to logs
+        short_output = ""
+        long_output = ""
+        
+        if args.pull:
+            #SHORT OUTPUT
+            short_output += "\n(%s) [%s] pulled."%(timestamp, filename)
+            #LONG OUTPUT
+            long_output += "\n(%s) [%s] pulled: %s to %s"%(timestamp, filename, file_full_path, remote_path)
+            long_output += "\ncmd: %s"%(rsync_cmd)
+        else:
+            #SHORT OUTPUT
+            short_output += "\n(%s) [%s] deployed."%(timestamp, filename)
+            #LONG OUTPUT
+            long_output += "\n(%s) [%s] deployed: %s to %s"%(timestamp, filename, file_full_path, remote_path)
+            long_output += "\ncmd: %s"%(rsync_cmd)
+        
+        if LOG_FILE:
+            log(short_output, LOG_FILE)
+        if LOG_FILE_VERBOSE:
+            log(long_output, LOG_FILE_VERBOSE)
+        
+    
 '''
-#write to verbose logfile
+#write to log
 '''
-def log_long(text):
-    global LOG_FILE_VERBOSE
+def log(text, logfile):
     #open log file, change 'a' to 'w' if you want to clear the log file on each update
-    f = open(LOG_FILE_VERBOSE, 'a')
+    f = open(logfile, 'a')
     f.write(text)
     f.close()
+    
 
 '''
 #read in from config
 '''
-def checkConfig():
-    global LOCAL_WORKSPACE, REMOTE_WORKSPACE, USERNAME, PASSWORD, SERVER, LOG_FILE, LOG_FILE_VERBOSE, RSYNC_ARGUMENTS, DEFAULT_CONFIG_PATH
+def parseConfig():
+    required_fields = ['local_workspace', 'remote_workspace', 'username', 'server']
 
     #parse the config
     config = configparser.ConfigParser()
     config.read(DEFAULT_CONFIG_PATH)
+
+    #build workspaces dict based on the config
+    workspaces = {}
+    for workspace in config:
+        if workspace is "DEFAULT":
+            continue
+        #make a new dict and grab all its fields
+        workspaces[workspace] = {}
+        for field in config[workspace]:
+            val = config[workspace][field]
+            #handle ~ in the path
+            if "~" in val:
+                val = val.replace("~", os.path.expanduser("~"))
+            workspaces[workspace][field] = val
+
+        #validate the workspace
+        valid_workspace = True
+        for field in required_fields:
+            if not field in workspaces[workspace]:
+                valid_workspace = False
+        #remove invalid ones
+        if not valid_workspace:
+            print("Invalid workspace: " + workspace)
+            workspaces.pop(workspace)
+
+    return workspaces
     
-    #assign config values to globals
-    if "LOCAL_WORKSPACE" in config["SETTINGS"]:
-        LOCAL_WORKSPACE = config["SETTINGS"]["LOCAL_WORKSPACE"]
-    if "REMOTE_WORKSPACE" in config["SETTINGS"]:
-        REMOTE_WORKSPACE = config["SETTINGS"]["REMOTE_WORKSPACE"]
-    if "USERNAME" in config["SETTINGS"]:
-        USERNAME = config["SETTINGS"]["USERNAME"]
-    if "PASSWORD" in config["SETTINGS"]:
-        PASSWORD = config["SETTINGS"]["PASSWORD"]
-    if "SERVER" in config["SETTINGS"]:
-        SERVER = config["SETTINGS"]["SERVER"]
-    if "LOG_FILE" in config["SETTINGS"]:
-        LOG_FILE = config["SETTINGS"]["LOG_FILE"]
-    if "LOG_FILE_VERBOSE" in config["SETTINGS"]:
-        LOG_FILE_VERBOSE = config["SETTINGS"]["LOG_FILE_VERBOSE"]
-    if "RSYNC_ARGUMENTS" in config["SETTINGS"]:
-        RSYNC_ARGUMENTS = config["SETTINGS"]["RSYNC_ARGUMENTS"]
 
 '''
-#make sure CLI is right
+#make sure CLI call is right
 '''
-def checkUsage ():
-    if len(sys.argv)<2:
-        print("Usage: " + sys.argv[0] + " [filename]");
-        sys.exit(0)
+def checkUsage():
+    example_text = "example:\n  serverSync filename.html  #push single file\n  serverSync -p filename.html #pull single file\n  serverSync -ap #pull entire remote workspace"
+    parser = argparse.ArgumentParser(epilog=example_text, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('-p', '--pull', action='store_true', help='pull down this directory from remote workspace')
+    parser.add_argument('-a', '--all', action='store_true', help='pull down entire remote workspace, must be used with -p')
+    parser.add_argument('-t', '--test', action='store_true', help='only print rsync command, does not run command')
+    parser.add_argument('filename', nargs='?', help='file to upload, required unless using -p')
+    args = parser.parse_args()
+
+    #make sure we're using -p with -a
+    if not args.pull and args.all:
+        parser.print_help()
+        sys.exit()
+
+    #make sure we have either a filename, or we're pulling
+    if not args.filename and not args.pull:
+        parser.print_help()
+        sys.exit()
+
+    return args
 
 
 if __name__ == "__main__":

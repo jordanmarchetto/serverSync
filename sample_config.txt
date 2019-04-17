@@ -1,0 +1,22 @@
+[WORKSPACE1]
+LOCAL_WORKSPACE = /local/file/path/workspace/1/
+REMOTE_WORKSPACE = /remote/file/path/workspace/1/
+USERNAME = my_server_username
+PASSWORD = hunter2
+SERVER = servername
+LOG_FILE = /local/file/path/sync_log.txt
+LOG_FILE_VERBOSE = /local/file/path/sync_log_verbose.txt
+RSYNC_ARGUMENTS = -e "ssh -p 22"
+
+[WORKSPACE1]
+LOCAL_WORKSPACE = /local/file/path/workspace/2/
+REMOTE_WORKSPACE = /remote/file/path/workspace/2/
+USERNAME = my_server_username
+PASSWORD = hunter2
+SERVER = servername
+LOG_FILE = /local/file/path/sync_log.txt
+LOG_FILE_VERBOSE = /local/file/path/sync_log_verbose.txt
+RSYNC_ARGUMENTS = -e "ssh -p 22"
+
+
+
