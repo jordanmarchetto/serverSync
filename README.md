@@ -31,7 +31,7 @@ optional arguments:
 
   -t, --test  only print rsync command, does not run command
 
-example:
+examples:
 
   serverSync filename.html  #push single file
 
